@@ -71,7 +71,7 @@ class InfluxdbSpeedtest():
             self.speedtest = speedtest.Speedtest()
         except speedtest.ConfigRetrievalError:
             log.critical('Failed to get speedtest.net configuration.  Aborting')
-            sys.exit(1)
+            raise
 
         self.speedtest.get_servers(server)
 
@@ -126,6 +126,12 @@ class InfluxdbSpeedtest():
         except speedtest.InvalidServerIDType:
             log.error('%s is an invalid server type, must be int', server)
             return
+        except speedtest.ConfigRetrievalError:
+            log.error("Failed to get speedtest.net configuration")
+            return
+        except Exception as e:
+            log.error("Some exception occurred: %s", e)
+            return
 
         log.info('Starting download test')
         self.speedtest.download()
@@ -168,9 +174,16 @@ class InfluxdbSpeedtest():
 
         while True:
             if not config.servers:
-                self.run_speed_test()
+                try:
+                    self.run_speed_test()
+                except Exception as e:
+                    log.error("An error occurred during speedtest: %s", e)
             else:
                 for server in config.servers:
-                    self.run_speed_test(server)
+                    try:
+                        self.run_speed_test(server)
+                    except Exception as e:
+                        log.error("An error occurred during speedtest: %s", e)
+
             log.info('Waiting %s seconds until next test', config.delay)
             time.sleep(config.delay)
